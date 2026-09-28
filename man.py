@@ -1,43 +1,82 @@
-# Import the necessary modules from tkinter
-import tkinter as tk
-from tkinter import messagebox
+from dataclasses import dataclass, field
+from typing import Sequence
 
-# Create the main application window
-root = tk.Tk()
-root.title("To-do-list")  # Set the window title
-root.geometry("400x300")  # Set the window size
 
-# Function to add a task to the listbox
-def add_task():
-    task = task_entry.get()  # Get the task from the entry widget
-    if task != "":  # Check if the task is not empty
-        task_listbox.insert(tk.END, task)  # Insert the task at the end of the listbox
-        task_entry.delete(0, tk.END)  # Clear the entry widget
-    else:
-        messagebox.showwarning("Warning", "Please enter a task")  # Show a warning if the task is empty
+EMPTY_TASK_WARNING = "Please enter a task"
+NO_SELECTION_WARNING = "Please select a task"
 
-# Function to delete the selected task from the listbox
-def del_task():
-    try:
-        task_listbox.delete(task_listbox.curselection()[0])  # Delete the selected task
-    except IndexError:
-        messagebox.showwarning("Warning", "Please select a task")  # Show a warning if no task is selected
 
-# Create the entry widget for task input
-task_entry = tk.Entry(root, width=50)
-task_entry.pack(pady=20)  # Add padding on the y-axis
+@dataclass
+class TaskStore:
+    tasks: list[str] = field(default_factory=list)
 
-# Create the listbox to display tasks
-task_listbox = tk.Listbox(root, width=50)
-task_listbox.pack(pady=10)  # Add padding on the y-axis
+    def add(self, task: str) -> bool:
+        if task == "":
+            return False
 
-# Create the button to add tasks
-task_addtask = tk.Button(root, text="Add task", command=add_task)
-task_addtask.pack(padx=10)  # Add padding on the x-axis
+        self.tasks.append(task)
+        return True
 
-# Create the button to delete tasks
-task_deltask = tk.Button(root, text="Delete task", command=del_task)
-task_deltask.pack(padx=5)  # Add padding on the x-axis
+    def delete_selection(self, selection: Sequence[int]) -> int | None:
+        if not selection:
+            return None
 
-# Run the main application loop
-root.mainloop()
+        index = selection[0]
+        if index < 0 or index >= len(self.tasks):
+            return None
+
+        del self.tasks[index]
+        return index
+
+
+class TodoApp:
+    def __init__(self, root, tk_module, messagebox_module):
+        self.root = root
+        self.tk = tk_module
+        self.messagebox = messagebox_module
+        self.store = TaskStore()
+
+        root.title("To-do-list")
+        root.geometry("400x300")
+
+        self.task_entry = tk_module.Entry(root, width=50)
+        self.task_entry.pack(pady=20)
+
+        self.task_listbox = tk_module.Listbox(root, width=50)
+        self.task_listbox.pack(pady=10)
+
+        self.task_addtask = tk_module.Button(root, text="Add task", command=self.add_task)
+        self.task_addtask.pack(padx=10)
+
+        self.task_deltask = tk_module.Button(root, text="Delete task", command=self.del_task)
+        self.task_deltask.pack(padx=5)
+
+    def add_task(self) -> None:
+        task = self.task_entry.get()
+        if self.store.add(task):
+            self.task_listbox.insert(self.tk.END, task)
+            self.task_entry.delete(0, self.tk.END)
+            return
+
+        self.messagebox.showwarning("Warning", EMPTY_TASK_WARNING)
+
+    def del_task(self) -> None:
+        deleted_index = self.store.delete_selection(self.task_listbox.curselection())
+        if deleted_index is None:
+            self.messagebox.showwarning("Warning", NO_SELECTION_WARNING)
+            return
+
+        self.task_listbox.delete(deleted_index)
+
+
+def main() -> None:
+    import tkinter as tk
+    from tkinter import messagebox
+
+    root = tk.Tk()
+    TodoApp(root, tk, messagebox)
+    root.mainloop()
+
+
+if __name__ == "__main__":
+    main()
